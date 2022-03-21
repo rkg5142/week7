@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Force Layout Nodes</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+</head>
+<body>
+<script>
+    const width = 1200
+    const height = 1000
+    let svg = d3.select("body").append("svg")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+    d3.json("./data/publication_network.json").then(data =>{
+     //Submitting partially completed assignment for partial credit
+     //Would like to submit revisions with guidance from the solution
+     //Work constraints prevent me from putting more time into this assignment
+        let degrees = {};
+                data.nodes.forEach((d, i)=>degrees[i]=0)
+                data.links.forEach(d=>{
+                    degrees[d.source]++
+                    degrees[d.target]++
+                })
+
+
+        const degreeExtent = d3.extent(Object.values(degrees), d => d)
+
+        const radiusScale = d3.scaleSqrt()
+                    .domain(degreeExtent)
+                    .range([10, 45])
+            
+        const colorScale = d3.scaleSequential()
+                .interpolator(d3.interpolateViridis)
+                .domain([0,10])
+        
+        const linkVals = data.links.map(d => {
+            return d.weight
+        })
+
+        const strokeScale = d3.scaleLinear()
+                .domain(d3.extent(linkVals, d => d))
+                .range([0.2, 15])
+
+        let gCanvas = svg.append("g").attr("class", "canvas");
+
+        let gNodes = gCanvas.selectAll()
+            .data(data.nodes)
+            .enter()
+            .append('g')
+        gNodes.append('circle').attr("r", 20).attr("fill", "blue")
+
+        let gLinks = gCanvas.selectAll('.links')
+            .data(data.links)
+            .enter()
+            .append("line")
+            .attr("stroke", "red")
+
+        gNodes.append('circle')
+            .attr("r"), (d, i)=>radiusScale(degrees[i])
+            .attr("fill","white")
+        //gNodes.append("text").text(d.degrees)
+        
+
+    
+        let fSim = d3.forceSimulation(data.nodes)
+                .force('center', d3.forceCenter(width/2, height/2))
+                .force('links', d3.forceLink(data.links)
+                    .distance(d => (d.weight * 5))
+                    .strength(0.1)
+                    .id(function(n) {return n.id;}))
+                .force('collide', d3.forceCollide()
+                    .radius((d, i) => radiusScale(degrees[i]) * 2.5)
+                    .iterations(5))
+                .force('charge', d3.forceManyBody().strength(-30))
+                .on('tick', update)
+            
+            function update() {
+                gNodes.attr('transform',  d => {
+                    return `translate(${d.x}, ${d.y})`})
+
+                gLinks.attr('x1', function (d) {return d.source.x})
+                    .attr('y1', function (d)  {return d.source.y})
+                    .attr('x2', function (d)  {return d.target.x})
+                    .attr('y2', function (d)  {return d.target.y})
+            }
+            svg.call(d3.zoom()
+                .extent([[0,0], [width, height]])
+                .scaleExtent([1,8])
+                .on("zoom", zoomed));
+            function zoomed({transform}) {
+                gCanvas.attr('transform', transform);
+            }
+            })
+            
+</script>
